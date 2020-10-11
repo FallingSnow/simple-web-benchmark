@@ -377,6 +377,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     lang_cmds.insert(
+        "nodejs_fastify",
+        Cmd {
+            title: "Node.js/Fastify",
+            build: Box::new(|| {
+                pexec(Command::new("npm").args(&[
+                    "install",
+                ]))
+            }),
+            run: Box::new(|| pspawn(&mut Command::new("node").args(&["nodejs/fastify/main.js"]))),
+        },
+    );
+    lang_cmds.insert(
         "ldc2",
         Cmd {
             title: "D (LDC/vibe.d)",
