@@ -51,7 +51,7 @@ Please use the Rust program to run the tests automatically:
     ARGS:
         <lang>...    Sets the languages to test ('all' for all)
 
-    The following languages are supported: crystal, dmd, go, java, ldc2, nodejs, php, python, rust_actix, rust_hyper, rust_rocket, rust_tide, rust_warp, scala.
+    The following languages are supported: crystal, dmd, go, java, ldc2, nodejs, nodejs_express, nodejs_fastify, deno, php, python, rust_actix, rust_hyper, rust_rocket, rust_tide, rust_warp, scala.
 
 And another program to get the versions of the languages:
 
@@ -110,6 +110,10 @@ Uses [Akka](https://akka.io/) toolkit:
     node nodejs/main.js
     node nodejs/express/main.js
     node nodejs/fastify/main.js
+
+### Deno
+
+    deno --allow-net deno/main.ts
 
 ### PHP
 
