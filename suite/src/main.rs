@@ -389,6 +389,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     );
     lang_cmds.insert(
+        "nodejs_express",
+        Cmd {
+            title: "Node.js/Express",
+            build: Box::new(|| {
+                pexec(Command::new("npm").args(&[
+                    "install",
+                ]))
+            }),
+            run: Box::new(|| pspawn(&mut Command::new("node").args(&["nodejs/express/main.js"]))),
+        },
+    );
+    lang_cmds.insert(
         "ldc2",
         Cmd {
             title: "D (LDC/vibe.d)",

@@ -108,6 +108,8 @@ Uses [Akka](https://akka.io/) toolkit:
 ### Node.js
 
     node nodejs/main.js
+    node nodejs/express/main.js
+    node nodejs/fastify/main.js
 
 ### PHP
 
