@@ -32,16 +32,9 @@ struct Cmd<'a> {
 
 thread_local! {
     static LSOF_PATTERN: Regex = Regex::new(r"p(\d+)").unwrap();
-    static CSV_PATTERN: Regex = Regex::new(
-        r"(?x)
-(?P<responseTime>[\d\.]+),
-(?P<dnsLookup>[\d\.]+),
-(?P<dns>[\d\.]+),
-(?P<requestWrite>[\d\.]+),
-(?P<responseDelay>[\d\.]+),
-(?P<responseRead>[\d\.]+),
-(?P<statusCode>\d+),
-(?P<offset>[\d\.]+)").unwrap();
+    static H2LOAD_PATTERN: Regex = Regex::new(
+        r"finished in (?P<totalTime>[\d\.]+)s, (?P<requestsPerSecond>[\d\.]+) req"
+    ).unwrap();
 }
 
 const ATTEMPTS: u32 = 30;
@@ -105,15 +98,17 @@ fn kill_processes() -> Result<bool, Box<dyn Error>> {
     Ok(found)
 }
 
-fn run_hey(additional: &[&str], capture: bool) -> Result<Option<String>, Box<dyn Error>> {
+fn run_h2load(additional: &[&str], capture: bool) -> Result<Option<String>, Box<dyn Error>> {
     let stdout = if capture {
         Stdio::piped()
     } else {
         Stdio::inherit()
     };
-    let mut cmd = Command::new("hey");
+    let mut cmd = Command::new("h2load");
     cmd.stdout(stdout)
-        .args(&["-n", "50000", "-c", "256", "-t", "10"])
+        .args(&[
+            "-D", "5", "--warm-up-time", "5", "-c", "10", "-m", "10", "--h1", "-T", "10",
+        ])
         .args(additional);
     if capture {
         let child = cmd.spawn()?;
@@ -137,35 +132,26 @@ fn run_benchmark(lang: &str, is_index: bool) -> Result<Vec<f64>, Box<dyn Error>>
         url.push_str("greeting/hello");
     }
 
-    // First run, for JIT
-    run_hey(&["-o", "csv", &url], true)?;
-
     // Second run, for UI
     println!("[{}] {}", lang, url);
-    run_hey(&[&url], false)?;
 
-    // Third run, for stats
-    if let Some(content) = run_hey(&["-o", "csv", &url], true).unwrap() {
-        CSV_PATTERN.with(|re| {
-            let values = content
-                .split('\n')
-                .map(|line| {
-                    let mut result = None;
-                    if let Some(captures) = re.captures(line) {
-                        if let Some(m) = captures.name("responseTime") {
-                            let double_value: f64 = m.as_str().parse().unwrap();
-                            result = Some(double_value * 1000.0)
-                        }
-                    }
-                    result
-                })
-                .filter_map(|x| x)
-                .collect();
-            Ok(values)
-        })
-    } else {
-        Ok(vec![])
-    }
+    run_h2load(&["--log-file=/tmp/results.tsv", &url], false)?;
+
+    let rdr = csv::ReaderBuilder::new()
+    .delimiter('\t' as u8)
+    .from_path("/tmp/results.tsv")?;
+
+    let values: Vec<f64> = rdr.into_records().map(|result| {
+        // dbg!(result.unwrap());
+        let double_value: f64 = result.unwrap()[2].parse().unwrap();
+        double_value / 1000f64
+        // 0f64
+    })
+    .collect();
+
+    std::fs::remove_file("/tmp/results.tsv")?;
+
+    Ok(values)
 }
 
 fn run(lang_cmd: &Cmd, verbose: bool) -> Result<(Vec<f64>, Vec<f64>), Box<dyn Error>> {
@@ -303,11 +289,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     "--release",
                 ]))
             }),
-            run: Box::new(|| {
-                pspawn(&mut Command::new(
-                    "rust/actix-web/target/release/actix-web",
-                ))
-            }),
+            run: Box::new(|| pspawn(&mut Command::new("rust/actix-web/target/release/actix-web"))),
         },
     );
     lang_cmds.insert(
@@ -380,11 +362,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "nodejs_fastify",
         Cmd {
             title: "Node.js/Fastify",
-            build: Box::new(|| {
-                pexec(Command::new("npm").args(&[
-                    "install",
-                ]))
-            }),
+            build: Box::new(|| Ok(())),
             run: Box::new(|| pspawn(&mut Command::new("node").args(&["nodejs/fastify/main.js"]))),
         },
     );
@@ -392,11 +370,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "nodejs_express",
         Cmd {
             title: "Node.js/Express",
-            build: Box::new(|| {
-                pexec(Command::new("npm").args(&[
-                    "install",
-                ]))
-            }),
+            build: Box::new(|| Ok(())),
             run: Box::new(|| pspawn(&mut Command::new("node").args(&["nodejs/express/main.js"]))),
         },
     );

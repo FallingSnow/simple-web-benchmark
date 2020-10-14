@@ -3,7 +3,7 @@ FROM debian:testing
 RUN apt-get update \
     && apt-get install -y wget xz-utils build-essential pkg-config cmake lsof fontconfig \
        libpcre3-dev libevent-dev libssl-dev zlib1g-dev libfreetype-dev libexpat1-dev \
-       python3 python3-twisted php php-dev \
+       python3 python3-twisted php php-dev nghttp2-client \
     && pecl install swoole \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
@@ -70,12 +70,6 @@ RUN wget -O - https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 
 RUN wget -O /usr/local/bin/coursier https://git.io/coursier-cli \
     && chmod +x /usr/local/bin/coursier
-
-# https://github.com/rakyll/hey
-RUN wget --progress=dot:giga \
-    https://storage.googleapis.com/hey-release/hey_linux_amd64 \
-    && chmod +x hey_linux_amd64 \
-    && ln -s /opt/hey_linux_amd64 /usr/bin/hey
 
 RUN crystal --version && echo "---" \
     && go version && echo "---" \
